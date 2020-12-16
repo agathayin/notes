@@ -1,11 +1,10 @@
-#### export pipeline
+#### export pipeline (typescript)
 
 	const fs = require('fs')
-	try {
-			fs.writeFileSync(path, JSON.stringify(pipeline, null, 4))
-		} catch (err) {
-			console.error(err)
-		}
+	require('fs').writeFile('message.txt', JSON.stringify((pipeline as any)._pipeline, null, 4), (err:any) => {
+            if (err) console.log(err);
+            console.log('The file has been saved!');
+        });
 
 #### res send html
 
