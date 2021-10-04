@@ -54,3 +54,82 @@ export default function App() {
   );
 }
 ```
+### read tab delimited txt
+```
+const uploadAmzTxt = (files) => {
+  console.log(files);
+  try {
+    for (let i = 0, f; (f = files[i]); i++) {
+      // read files with FileReader
+      let reader = new FileReader();
+      reader.onload = (function (reader) {
+        return function () {
+          // split lines
+          let data = reader.result.split(/\r?\n/);
+          let lines = [];
+          lines = data.map((d) => d.split("\n"));
+          // split tabs
+          lines = lines.map((line) => line[0].split("\t"));
+          const [header, ...rows] = lines;
+          let finalArr = [];
+          // format array into object array
+          for (var vals = 0; vals < rows.length; vals++) {
+            let row = rows[vals];
+            if (row.length > 1) {
+              let tableObj = {};
+              for (let key = 0; key < header.length; key++) {
+                tableObj[header[key]] = row[key];
+              }
+              finalArr.push(tableObj);
+            }
+          }
+          //final result
+          console.log(finalArr)
+        };
+      })(reader);
+      reader.readAsText(f);
+    }
+  } catch (err) {
+    console.log('Something wrong with txt file. Please check.')
+  }
+};
+```
+### merge items in array
+```
+const mergeBox = (chunkSize) => {
+  console.log('mergeBox', chunkSize);
+  let array = originalData;
+  // group items by chunkSize
+  let mergedArray = [].concat.apply([],
+    array.map(function (elem, i) {
+      return i % chunkSize ? [] : [array.slice(i, i + chunkSize)];
+    })
+  );
+  console.log('mergedArray', mergedArray);
+  // format result
+  let result = mergedArray.map((data, index) => {
+    let qty = _.sum(data.flatMap(data => data.content.map(content => content.qty)));
+    let packed = _.sum(data.flatMap(data => data.content.map(content => content.packed)));
+    let content = [{
+      name: data[0].content[0].name,
+      sku: data[0].content[0].sku,
+      qty: qty,
+      packed: packed > qty ? qty : packed,
+      VSKU: data.flatMap(data => data.content.flatMap(content => content.VSKU))
+    }]
+    let actualWeight = data[0].actualWeight * data.length;
+    return {
+      boxCode: 'custom',
+      length: data[0].length,
+      width: data[0].width,
+      height: data[0].height * data.length,
+      tracking: '',
+      shippingLabe: '',
+      actualWeight: actualWeight,
+      content: content,
+    }
+  })
+  //final result
+  console.log('result', result);
+}
+```
