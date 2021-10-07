@@ -94,6 +94,52 @@ const uploadAmzTxt = (files) => {
   }
 };
 ```
+
+### download object array as tab delimited text
+```
+const exportAMZTXT = (data) => {
+  //all data
+  let data = DataTransfer;
+  data = data.filter((el) => el.source === "AMZ");
+  let header = [
+    "order-id",
+    "order-item-id",
+    "quantity",
+    "ship-date",
+    "carrier-code",
+    "tracking-number",
+    "ship-method"
+  ].join("\t");
+  let rows = data.flatMap((d) => {
+    return d.box.flatMap((box) => {
+      return box.content.flatMap((content) => {
+        let lineArray = [
+          d.orderId,
+          content.orderItemId || "",
+          content.qty,
+          box.shipDate,
+          box.carrier || "",
+          box.tracking || "",
+          box.service || ""
+        ];
+        return lineArray.join("\t");
+      });
+    });
+  });
+  let content = header + "\n" + rows.join("\n") + "\n";
+  let link = document.createElement("a");
+  let blob = new Blob([content], {
+    type: "text/plain;charset=utf-8"
+  });
+  let url = window.URL.createObjectURL(blob);
+  link.href = url;
+  link.download = "test.txt";
+  link.click();
+  window.URL.revokeObjectURL(url);
+  link.remove();
+};
+```
+
 ### merge items in array
 ```
 const mergeBox = (chunkSize) => {
