@@ -104,11 +104,9 @@ async function getCredentials() {
   }
 };
 ```
-#### get orders
-Please notice that the accessKeyId, secretAccessKey, and sessionToken here all come from getCredentials (different from the id on user page).
-
+#### set request config
 ```
-async function requestConfig(path) {
+async function requestConfig(path, method, body) {
   let tempCreds = await getCredentials();
   if (tempCreds.message) {
     return {
@@ -131,7 +129,7 @@ async function requestConfig(path) {
   }
   const params = {
     path: path,
-    method: 'GET',
+    method: method,
     host: host,
     region: region,
     service: 'execute-api',
@@ -140,6 +138,10 @@ async function requestConfig(path) {
       'x-amz-access-token': token,
     },
   };
+  if (body) {
+    params.body = JSON.stringify(body);
+    params.headers["Content-Type"] = "application/json"
+  }
 
   return aws4.sign(params, {
     accessKeyId: AccessKeyId,
@@ -148,31 +150,203 @@ async function requestConfig(path) {
     region: region
   });
 }
-async function getOrders(){
+```
+#### get orders
+Please notice that the accessKeyId, secretAccessKey, and sessionToken here all come from getCredentials (different from the id on user page).
+
+```
+async function getOrders(url) {
   let now = new Date();
-  let oneWeekAgo = new Date(now.getTime()-1000*60*60*24*7).toISOString();
-  let signedRequest = await requestConfig(`/orders/v0/orders?MarketplaceIds=${marketplaceId}&CreatedAfter=${oneWeekAgo}`);
-  console.log(signedRequest);
-  let response = await fetch(`https://${signedRequest.host}${signedRequest.path}`,signedRequest);
-  if(response){
-    response = await response.json();
-    if(response.errors){
+  let createAfter = new Date(now.getTime() - 1000 * 60 * 60 * 24 * 2).toISOString();
+  if (!url) {
+    url = `/orders/v0/orders?MarketplaceIds=${marketplaceId}&CreatedAfter=${createAfter}&FulfillmentChannels=MFN`;
+  }
+  if (amzUrl.includes("sandbox")) {
+    marketplaceId = "ATVPDKIKX0DER";
+    createAfter = "TEST_CASE_200"
+  }
+  let signedRequest = await requestConfig(url, 'GET');
+  let response = await fetch(`https://${signedRequest.host}${signedRequest.path}`, signedRequest);
+  let data = [];
+  if (response) {
+    try {
+      response = await response.json();
+    } catch (err) {
       return {
-        message: response.errors.map(el=>el.message).join('. '),
+        message: 'Cannot parse orders' + err
+      }
+    }
+
+
+    if (response.errors) {
+      return {
+        message: response.errors.map(el => el.message).join('. '),
         errors: response.errors
       }
-    }else if(response.payload && response.payload.Orders){
-      return response.payload.Orders;
-    }else {
+    } else if (response.payload && response.payload.Orders) {
+      data.push(...response.payload.Orders);
+      //Important: the while statement for NextToken haven't been tested
+      while (response.payload.NextToken) {
+        //next request
+        let nextToken = encodeURIComponent(response.payload.NextToken);
+        let nextUrl = `/orders/v0/orders?MarketplaceIds=${marketplaceId}&NextToken=${nextToken}`;
+        let nextSignedRequest = await requestConfig(nextUrl, 'GET');
+        response = await fetch(`https://${nextSignedRequest.host}${nextSignedRequest.path}`, nextSignedRequest);
+        if (response && response.ok) {
+          response = await response.json();
+          if (response.payload && response.payload.Orders) {
+            data.push(response.payload.Orders);
+          }
+        }
+      }
+      return data;
+    } else {
       return {
         message: 'Cannot get orders from amz',
         errors: response
       }
     }
-  }else{
+  } else {
     return {
       message: 'No response from orders'
     }
+  }
+}
+```
+getOrder with NextToken (untested version)  
+Important: use encodeURIComponent to encode NextToken, or it will show error like `We could not decode your NextToken. Possible reasons include: a transmission error, improper quoting or a truncation problem`
+```
+...
+}else if(response.payload && response.payload.Orders){
+      let data = [];
+      data.push(...response.payload.Orders);
+      while (response.payload.NextToken) {
+        //next request
+        let nextToken = encodeURIComponent(response.payload.NextToken);
+        let nextUrl = `/orders/v0/orders?MarketplaceIds=${marketplaceId}&NextToken=${nextToken}`;
+        let nextSignedRequest = await requestConfig(nextUrl, 'GET');
+        response = await fetch(`https://${nextSignedRequest.host}${nextSignedRequest.path}`, nextSignedRequest);
+        if (response && response.ok) {
+          response = await response.json();
+          if (response.payload && response.payload.Orders) {
+            data.push(response.payload.Orders);
+          }
+        }
+      }
+      return data;
+    }
+...
+```
+
+### update order trackings with feeds api
+The file format I upload is text/tab-separated-values.  
+Guide link: [Feeds API Use Case Guide](https://github.com/amzn/selling-partner-api-docs/blob/main/guides/en-US/use-case-guides/feeds-api-use-case-guide/feeds-api-use-case-guide_2021-06-30.md)
+#### create feed document  
+```
+async function createFeedDocument() {
+  let body = {
+    contentType: "text/tab-separated-values; charset=UTF-8"
+  }
+  if (amzUrl.includes("sandbox")) {
+    body = {
+      contentType: "text/tab-separated-values; charset=UTF-8"
+    }
+  }
+  let signedRequest = await requestConfig(`/feeds/2021-06-30/documents`, 'POST', body);
+  let response = await fetch(amzUrl + '/feeds/2021-06-30/documents', signedRequest);
+  if (response) response = await response.json();
+  return response;
+}
+```
+#### construct a feed
+Use `Buffer.from(content, 'utf-8').toString()` to transform content into utf-8 file. Here the content I generated already fits the format.  
+```
+async function constructAFeed(data) {
+  let header = ['order-id', 'order-item-id', 'quantity', 'ship-date', 'carrier-code', 'tracking-number', 'ship-method'].join("\t");
+  let rows = data.flatMap(d => {
+    return d.box.flatMap(box => {
+      return box.content.flatMap(content => {
+        let lineArray = [{{orderId}}, {{orderItemId}}, {{qty}}, new Date({{shipDate}}).toISOString().split('T')[0], {{carrier}}, {{box.tracking}}, {{service}}]
+        return lineArray.join("\t")
+      })
+    })
+  })
+  let content = header + "\n" + rows.join("\n") + "\n";
+  return content;
+}
+```
+#### upload feed data
+```
+async function uploadFeedData(url, content) {
+  fetch(url, {
+    method: "PUT",
+    headers: {
+      "Content-Type": "text/tab-separated-values; charset=UTF-8"
+    },
+    body: content
+  })
+}
+```
+#### create a feed
+```
+async function createAFeed(inputFeedDocumentId) {
+  let body = {
+    feedType: "POST_FLAT_FILE_FULFILLMENT_DATA",
+    marketplaceIds: [marketplaceId],
+    inputFeedDocumentId: inputFeedDocumentId
+  }
+  if (amzUrl.includes("sandbox")) {
+    body = {
+      feedType: "POST_PRODUCT_DATA",
+      marketplaceIds: ["ATVPDKIKX0DER", "A1F83G8C2ARO7P"],
+      inputFeedDocumentId: "3d4e42b5-1d6e-44e8-a89c-2abfca0625bb"
+    }
+  }
+  let signedRequest = await requestConfig(`/feeds/2021-06-30/feeds`, 'POST', body);
+  let response = await fetch(amzUrl + '/feeds/2021-06-30/feeds', signedRequest);
+  if (response) response = await response.json();
+  return response;
+}
+```
+#### function to call feeds api
+```
+async function shipOrders(req, res) {
+  let orders = await getUnshippedSelffulfillments();
+  if (orders.message) {
+    return res.status(500).send({
+      message: orders.message
+    })
+  }
+  if (orders && !orders.length) {
+    return res.status(500).send({
+      message: 'No unshipped orders to update'
+    })
+  }
+  let feedDoc = await createFeedDocument();
+  if (!feedDoc || feedDoc.errors || !feedDoc.url || !feedDoc.feedDocumentId) {
+    return res.status(500).send({
+      message: "Failed to create feed documnets",
+      errors: feedDoc.errors
+    })
+  }
+  let {
+    feedDocumentId,
+    url
+  } = feedDoc;
+  let content = await constructAFeed(orders);
+  await uploadFeedData(url, content);
+  let feed = await createAFeed(feedDocumentId);
+  if (!feed.feedId || feed.message) {
+    return res.status(500).send({
+      message: feed.message,
+      errors: feed
+    })
+  } else if (feed.feedId) {
+    console.log("spapi feed: " + feed.feedId + " feedDocumentId: " + feedDocumentId + " url: " + url);
+    res.status(200).send({
+      feedId: feed.feedId,
+      orderId: orders.map(el => el.orderId)
+    })
   }
 }
 ```
