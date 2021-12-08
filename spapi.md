@@ -185,7 +185,6 @@ async function getOrders(url) {
       }
     } else if (response.payload && response.payload.Orders) {
       data.push(...response.payload.Orders);
-      //Important: the while statement for NextToken haven't been tested
       while (response.payload.NextToken) {
         //next request
         let nextToken = encodeURIComponent(response.payload.NextToken);
@@ -195,7 +194,7 @@ async function getOrders(url) {
         if (response && response.ok) {
           response = await response.json();
           if (response.payload && response.payload.Orders) {
-            data.push(response.payload.Orders);
+            data.push(...response.payload.Orders);
           }
         }
       }
