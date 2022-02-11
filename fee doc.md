@@ -56,4 +56,7 @@ newAverageCost.averageCostPerCase = ((newAverageCost.oldQtyCase * newAverageCost
 ```
 Internal SKU:  
 ```
-
+// generated everytime when certain SKU average changes
+// a1,a2 means averageCost A, averageCost B, q1,q2 means their qty
+newAverageCost.averageCostPerCase = (a1*q1+a2*q2)/(q1+q2)
+```
