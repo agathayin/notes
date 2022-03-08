@@ -27,12 +27,20 @@ averageRawCostPerCase = totalRawCostSingleForAvg / totalQtyCountForAvg * data.we
 
 ### Purchase fee
 #### shippingFee
-Sum of all poList shippingFee
+Sum of all poList shippingFee  
+```
+shippingFee = SUM(product.shippingFee * product.poqty / product.poQtyPerCase);
+```
 #### dutyFee
-Sum of all poList dutyFee
+Sum of all poList dutyFee  
+```
+dutyFee = SUM(product.dutyFee * product.poqty / product.poQtyPerCase);
+```
 #### additionalFee
-Sum ov all poList additionalFee
-
+Sum ov all poList additionalFee  
+```
+additionalFee = SUM(product.additionalFee * product.poqty / product.poQtyPerCase);
+```
 #### poList rawCostCase
 Inventory costCase. It should be the same as the purchase invoice receipt (?).
 
