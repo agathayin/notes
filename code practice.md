@@ -179,3 +179,60 @@ const mergeBox = (chunkSize) => {
   console.log('result', result);
 }
 ```
+
+### pdf to image  
+pdfData here is buffer array or plain base64 url.
+```
+async function pdfToImage(pdfData, pageNumber, scale = 4) {
+      try {
+        pageNumber = Number(pageNumber);
+        if (typeof (pdfData) == 'string') {
+          // convertDataURIToBinary
+          let raw = atob(pdfData);
+          var rawLength = raw.length;
+          var array = new Uint8Array(new ArrayBuffer(rawLength));
+          for (var i = 0; i < rawLength; i++) {
+            array[i] = raw.charCodeAt(i);
+          }
+          pdfData = array;
+        }
+        let loadingTask = pdfjsLib.getDocument({
+          data: pdfData
+        });
+        let pdf = await loadingTask.promise;
+        let page = await pdf.getPage(pageNumber);
+        var viewport = page.getViewport({
+          scale: scale
+        });
+
+        // Prepare canvas using PDF page dimensions
+        var canvas = document.getElementById('the-canvas');
+        if (!canvas) {
+          canvas = document.createElement('canvas');
+          canvas.setAttribute("id", "the-canvas");
+        }
+        var context = canvas.getContext('2d');
+        canvas.height = viewport.height;
+        canvas.width = viewport.width;
+
+        // Render PDF page into canvas context
+        var renderContext = {
+          canvasContext: context,
+          viewport: viewport
+        };
+        var renderTask = page.render(renderContext);
+        await renderTask.promise;
+        let imageURL = renderContext.canvasContext.canvas.toDataURL("image/png");
+        return imageURL;
+      } catch (err) {
+        console.log(err);
+        return '';
+      }
+    }
+```
+if pdfData is a string with `data:application/pdf;base64,`, use codes below before line:191.  
+```
+var BASE64_MARKER = ';base64,';
+var base64Index = dataURI.indexOf(BASE64_MARKER) + BASE64_MARKER.length;
+ var base64 = dataURI.substring(base64Index);
+```
