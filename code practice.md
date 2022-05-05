@@ -234,5 +234,5 @@ if pdfData is a string with `data:application/pdf;base64,`, use codes below befo
 ```
 var BASE64_MARKER = ';base64,';
 var base64Index = dataURI.indexOf(BASE64_MARKER) + BASE64_MARKER.length;
- var base64 = dataURI.substring(base64Index);
+var base64 = dataURI.substring(base64Index);
 ```
