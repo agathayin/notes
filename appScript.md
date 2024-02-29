@@ -125,3 +125,45 @@ if (type == DocumentApp.ElementType.INLINE_IMAGE) {
 
 }
 ```
+
+### change color when onEdit
+```
+function onEdit(e) {
+  var sh = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+  var name = sh.getSheetName();
+  if (!name.startsWith("Restock Report")) return;
+  var newVal = sh.getActiveCell().getValue();
+  var oldVal = e.oldVal;
+  if (oldVal != newVal) sh.getActiveCell().setBackground("lightpink");
+}
+```
+### add menu
+```
+function onOpen() {
+  var ui = SpreadsheetApp.getUi();
+  ui.createMenu("FBA Restock")
+    .addItem("Calculate sum", "calculateSumFun")
+    .addToUi();
+}
+```
+### read sheet data
+```
+var sheetApp = SpreadsheetApp.openById("1FM6-1NJunCkXwjJZtcYZxn3bmg6bs3pBym6aoUURhxs");
+var weeklySaleSheet = sheetApp.getSheetByName("Sales Report");
+var weeklySale = weeklySaleSheet.getDataRange().getValues();
+```
+### set data
+```
+var today = Utilities.formatDate(new Date(), "GMT+1", "MM-dd");
+var ss = SpreadsheetApp.getActiveSpreadsheet();
+var reportName = "Report " + today;
+ss.insertSheet(reportName);
+var dataSheet = ss.getSheetByName(reportName);
+dataSheet.getRange(1, 1, numRows, numColumns).setValues(dataSet); // Get a range the size of the data and set the values
+
+var range = dataSheet.getRange(1, 1, numRows, numColumns);
+range.setBorder(true, true, true, true, true, true);
+range.setHorizontalAlignment("left");
+range = dataSheet.getRange(2, 1, numRows, numColumns);
+range.sort({ column: 1, descending: false });
+```
