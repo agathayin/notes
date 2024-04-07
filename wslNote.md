@@ -8,6 +8,7 @@ https://learn.microsoft.com/en-us/windows/terminal/install
 5. `sudo apt install git npm`
 6. follow https://www.mongodb.com/docs/manual/tutorial/install-mongodb-on-debian/ to install Mongodb
 7. `sudo mongod --dbpath=/var/lib/mongod`
+8. windows install vscode, install extention for wsl
 
 run project
 1. clone code
