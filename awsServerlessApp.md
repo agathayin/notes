@@ -62,4 +62,6 @@ set routes
 
 ### Reference:
 [Building Serverless Applications in AWS](https://www.linkedin.com/learning/building-serverless-applications-in-aws)  
-[Build Full-Stack Apps with Serverless and React on AWS](http://s3-bnb.s3-website-us-east-1.amazonaws.com/s3-bnb-serverless/)
+[Build Full-Stack Apps with Serverless and React on AWS](http://s3-bnb.s3-website-us-east-1.amazonaws.com/s3-bnb-serverless/)  
+[Deploy a React-based single-page application to Amazon S3 and CloudFront](https://docs.aws.amazon.com/prescriptive-guidance/latest/patterns/deploy-a-react-based-single-page-application-to-amazon-s3-and-cloudfront.html)  
+[AWS official sample: react-cors-spa](https://github.com/aws-samples/react-cors-spa/tree/main)
