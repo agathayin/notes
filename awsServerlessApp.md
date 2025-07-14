@@ -30,23 +30,89 @@ create functions and set permissions.
 2. Fill in function name. Choose `Node.js 16.x` as Runtime. Click "Create function".
 3. Add codes in "Code source".
 ```
-const AWS = require("aws-sdk");
-const dynamoDB = new AWS.DynamoDB.DocumentClient();
-exports.handler = async (event) => {
-    const params = { TableName: "TABLE_NAME" };
-    const data = await dynamoDB.scan(params).promise();
-    const response = {
-        statusCode: 200,
-        body: JSON.stringify(data.Items),
+import { DynamoDB } from '@aws-sdk/client-dynamodb';
+import { DynamoDBDocument } from '@aws-sdk/lib-dynamodb';
+const dynamo = DynamoDBDocument.from(new DynamoDB());
+
+export const handler = async (event) => {
+    // console.log('Received event:', JSON.stringify(event, null, 2));
+    async function getDataByID(id){
+        const params = {
+            TableName: "gameMadLibAnswers",
+            Key: {
+                id: id
+            }
+        };
+        const data = await dynamo.get(params);
+        let result = {}
+        if(data?.Item) result = data.Item;
+        return result;
+    }
+    let body;
+    let statusCode = '200';
+    const headers = {
+        'Content-Type': 'application/json',
     };
-    return response;
-}
+    const params = { TableName: "gameMadLibAnswers" }
+
+    try {
+        const method = event.requestContext?.http?.method ?? '';
+        if(!method) throw new Error(`Unknown method. ${JSON.stringify(event)}`);
+        let reqBody = {}
+        if(event.body) reqBody = JSON.parse(event.body);
+        switch (method) {
+            case 'DELETE':
+                // body = await dynamo.delete(JSON.parse(event.body));
+                throw new Error(`Unsupported method "DELETE"`);
+                break;
+            case 'GET':
+                body = []
+                let response = await dynamo.scan(params);
+                if(response?.Items?.length) body = response.Items;
+                break;
+            case 'POST':
+                // body = await dynamo.put(JSON.parse(event.body));
+                throw new Error(`Unsupported method "POST". ${JSON.stringify(event)}`);
+                break;
+            case 'PUT':
+                if(!reqBody || reqBody.id===undefined) throw new Error(`Missing id. ${JSON.stringify(reqBody)}`);
+                let data = await getDataByID(reqBody.id);
+                if(!data || !data.id) throw new Error(`Data not found.`);
+                let params = {
+                    TableName:"gameMadLibAnswers",
+                    Item: {
+                      id: reqBody.id,
+                      value: reqBody.value,
+                    },
+                  }
+                await dynamo.put(params);
+                body = {...params.Item}
+                console.log(body)
+                break;
+            default:
+                throw new Error(`Unsupported method "${method}". ${JSON.stringify(event)}`);
+        }
+    } catch (err) {
+        statusCode = '400';
+        body = err.message;
+    } finally {
+        body = JSON.stringify(body);
+    }
+
+    return {
+        statusCode,
+        body,
+        headers,
+    };
+};
+
 ```
 4. Click "Deploy".
 5. Go to "Configuration" (the same line as Code, Test, Monitor,...).
 6. Click "Permissions" (sidebar). Click the role name.
 7. Click "Add permissions" - "Attach policies".
 8. Select "Amazon DynamoDBFullAccess", click "Add permissions".
+9. Set "function URL" for public url
 ### API Gateway
 set routes  
 1. Go to **API Gateway**.
