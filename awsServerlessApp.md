@@ -32,6 +32,7 @@ create functions and set permissions.
 ```
 import { DynamoDB } from '@aws-sdk/client-dynamodb';
 import { DynamoDBDocument } from '@aws-sdk/lib-dynamodb';
+
 const dynamo = DynamoDBDocument.from(new DynamoDB());
 
 export const handler = async (event) => {
@@ -53,7 +54,6 @@ export const handler = async (event) => {
     const headers = {
         'Content-Type': 'application/json',
     };
-    const params = { TableName: "gameMadLibAnswers" }
 
     try {
         const method = event.requestContext?.http?.method ?? '';
@@ -67,7 +67,7 @@ export const handler = async (event) => {
                 break;
             case 'GET':
                 body = []
-                let response = await dynamo.scan(params);
+                let response = await dynamo.scan({ TableName: "gameMadLibAnswers" });
                 if(response?.Items?.length) body = response.Items;
                 break;
             case 'POST':
@@ -95,6 +95,7 @@ export const handler = async (event) => {
     } catch (err) {
         statusCode = '400';
         body = err.message;
+        console.log(err)
     } finally {
         body = JSON.stringify(body);
     }
